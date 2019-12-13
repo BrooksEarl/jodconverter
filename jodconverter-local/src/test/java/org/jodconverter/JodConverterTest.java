@@ -20,11 +20,11 @@
 package org.jodconverter;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.powermock.api.mockito.PowerMockito.spy;
 
 import java.io.File;
 import java.io.InputStream;
@@ -37,6 +37,9 @@ import org.mockito.ArgumentCaptor;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import org.jodconverter.document.DefaultDocumentFormatRegistry;
+import org.jodconverter.document.DocumentFormat;
+import org.jodconverter.office.LocalOfficeManager;
 import org.jodconverter.test.util.AssertUtil;
 
 @RunWith(PowerMockRunner.class)
@@ -46,11 +49,12 @@ public class JodConverterTest {
   private static final File SOURCE_FILE = new File("src/test/resources/documents/test.txt");
 
   private LocalConverter localConverter;
+  private LocalConverter.Builder builder;
 
   /** Setup the office manager before each test. */
   @Before
   public void setUp() {
-
+    builder = LocalConverter.builder();
     mockStatic(LocalConverter.class);
     localConverter = mock(LocalConverter.class);
     given(LocalConverter.make()).willReturn(localConverter);
@@ -98,5 +102,29 @@ public class JodConverterTest {
       verify(localConverter, times(1)).convert(argument.capture(), booleanArgument.capture());
       assertThat(argument.getValue()).isEqualTo(stream);
     }
+  }
+
+  @Test
+  public void convert_AddSources_CallForwardToLocalConverter() {
+
+    given(localConverter.convert(any(File.class))).willCallRealMethod();
+
+    LocalOfficeManager.install();
+
+    final LocalConverter localConverter =
+        builder.formatRegistry(DefaultDocumentFormatRegistry.getInstance()).build();
+    final LocalConverter converterSpy = spy(localConverter);
+
+    converterSpy.convert(SOURCE_FILE).append(SOURCE_FILE, DefaultDocumentFormatRegistry.TXT);
+
+    final ArgumentCaptor<File> sourceArgument = ArgumentCaptor.forClass(File.class);
+    final ArgumentCaptor<File> appendArgument = ArgumentCaptor.forClass(File.class);
+    final ArgumentCaptor<DocumentFormat> formatArgument =
+        ArgumentCaptor.forClass(DocumentFormat.class);
+
+    verify(converterSpy, times(1)).convert(sourceArgument.capture());
+    verify(converterSpy, times(1))
+        .createFileSourceSpecs(appendArgument.capture(), formatArgument.capture());
+    assertThat(formatArgument.getValue()).isEqualTo(DefaultDocumentFormatRegistry.TXT);
   }
 }

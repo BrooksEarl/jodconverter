@@ -22,11 +22,11 @@ package org.jodconverter.task;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.*;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import java.io.File;
+import java.util.Collections;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -38,12 +38,16 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.sun.star.beans.PropertyValue;
+import com.sun.star.document.XDocumentInsertable;
 import com.sun.star.frame.XComponentLoader;
 import com.sun.star.frame.XStorable;
 import com.sun.star.io.IOException;
 import com.sun.star.lang.XComponent;
 import com.sun.star.lang.XServiceInfo;
 import com.sun.star.task.ErrorCodeIOException;
+import com.sun.star.text.XText;
+import com.sun.star.text.XTextCursor;
+import com.sun.star.text.XTextDocument;
 import com.sun.star.uno.UnoRuntime;
 
 import org.jodconverter.document.DefaultDocumentFormatRegistry;
@@ -262,6 +266,73 @@ public class LocalConversionTaskTest {
           .isExactlyInstanceOf(OfficeException.class)
           .hasCauseExactlyInstanceOf(IOException.class);
     }
+  }
+
+  @Test
+  public void execute_AppendDocuments() throws Exception {
+
+    final XServiceInfo serviceInfo = mock(XServiceInfo.class);
+    given(serviceInfo.supportsService("com.sun.star.text.GenericTextDocument")).willReturn(true);
+
+    final XStorable storable = mock(XStorable.class);
+
+    final XComponent document = mock(XComponent.class);
+    final XComponentLoader loader = mock(XComponentLoader.class);
+    final LocalOfficeContext context = mock(LocalOfficeContext.class);
+    final XTextDocument xTextDocument = mock(XTextDocument.class);
+    final XTextCursor xTextCursor = mock(XTextCursor.class);
+    final XText xText = mock(XText.class);
+    final XDocumentInsertable xDocumentInsertable = mock(XDocumentInsertable.class);
+    given(
+            loader.loadComponentFromURL(
+                isA(String.class), isA(String.class), isA(int.class), isA(PropertyValue[].class)))
+        .willReturn(document);
+    given(context.getComponentLoader()).willReturn(loader);
+    mockStatic(UnoRuntime.class);
+    given(UnoRuntime.queryInterface(XServiceInfo.class, document)).willReturn(serviceInfo);
+    given(UnoRuntime.queryInterface(XStorable.class, document)).willReturn(storable);
+    given(UnoRuntime.queryInterface(XComponent.class, document)).willReturn(document);
+    given(UnoRuntime.queryInterface(XTextDocument.class, document)).willReturn(xTextDocument);
+    given(xTextDocument.getText()).willReturn(xText);
+    given(xText.createTextCursor()).willReturn(xTextCursor);
+    given(UnoRuntime.queryInterface(XDocumentInsertable.class, xTextCursor))
+        .willReturn(xDocumentInsertable);
+
+    final File targetFile = new File(testFolder.getRoot(), TARGET_FILENAME);
+
+    LocalConversionTask task =
+        new LocalConversionTask(
+            new FooSourceSpecs(SOURCE_FILE), new FooTargetSpecs(targetFile), null, null, null);
+
+    task.execute(context);
+    verify(xDocumentInsertable, times(0))
+        .insertDocumentFromURL(anyString(), any(PropertyValue[].class));
+
+    task =
+        new LocalConversionTask(
+            new FooSourceSpecs(SOURCE_FILE),
+            Collections.emptyList(),
+            new FooTargetSpecs(targetFile),
+            null,
+            null,
+            null);
+
+    task.execute(context);
+    verify(xDocumentInsertable, times(0))
+        .insertDocumentFromURL(anyString(), any(PropertyValue[].class));
+
+    task =
+        new LocalConversionTask(
+            new FooSourceSpecs(SOURCE_FILE),
+            Collections.singletonList(new FooSourceSpecs(SOURCE_FILE)),
+            new FooTargetSpecs(targetFile),
+            null,
+            null,
+            null);
+
+    task.execute(context);
+    verify(xDocumentInsertable, times(1))
+        .insertDocumentFromURL(anyString(), any(PropertyValue[].class));
   }
 
   @Test

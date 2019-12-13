@@ -19,12 +19,12 @@
 
 package org.jodconverter;
 
+import java.io.File;
+import java.io.InputStream;
+
+import org.jodconverter.document.DocumentFormat;
 import org.jodconverter.document.DocumentFormatRegistry;
-import org.jodconverter.job.AbstractConversionJob;
-import org.jodconverter.job.AbstractConversionJobWithSourceFormatUnspecified;
-import org.jodconverter.job.AbstractConverter;
-import org.jodconverter.job.AbstractSourceDocumentSpecs;
-import org.jodconverter.job.AbstractTargetDocumentSpecs;
+import org.jodconverter.job.*;
 import org.jodconverter.office.InstalledOfficeManagerHolder;
 import org.jodconverter.office.OfficeException;
 import org.jodconverter.office.OfficeManager;
@@ -94,6 +94,32 @@ public class OnlineConverter extends AbstractConverter {
     protected AbstractConversionJob to(final AbstractTargetDocumentSpecs target) {
 
       return new OnlineConversionJob(source, target);
+    }
+
+    @Override
+    public ConversionJobWithSourceSpecified append(File source) {
+      return throwUnsupportedOperationException();
+    }
+
+    @Override
+    public ConversionJobWithSourceSpecified append(File source, DocumentFormat documentFormat) {
+      return throwUnsupportedOperationException();
+    }
+
+    @Override
+    public ConversionJobWithSourceSpecified append(
+        InputStream source, DocumentFormat documentFormat) {
+      return throwUnsupportedOperationException();
+    }
+
+    @Override
+    public ConversionJobWithSourceSpecified append(
+        InputStream source, DocumentFormat documentFormat, boolean closeStream) {
+      return throwUnsupportedOperationException();
+    }
+
+    private ConversionJobWithSourceSpecified throwUnsupportedOperationException() {
+      throw new UnsupportedOperationException("Online converter can not perform merging");
     }
   }
 

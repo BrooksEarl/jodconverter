@@ -67,12 +67,7 @@ public abstract class AbstractConverter implements DocumentConverter {
   @Override
   public ConversionJobWithOptionalSourceFormatUnspecified convert(final File source) {
 
-    final SourceDocumentSpecsFromFile specs = new SourceDocumentSpecsFromFile(source);
-    final DocumentFormat format =
-        formatRegistry.getFormatByExtension(FilenameUtils.getExtension(source.getName()));
-    if (format != null) {
-      specs.setDocumentFormat(format);
-    }
+    final SourceDocumentSpecsFromFile specs = createFileSourceSpecs(source);
 
     return convert(specs);
   }
@@ -87,14 +82,41 @@ public abstract class AbstractConverter implements DocumentConverter {
   public ConversionJobWithOptionalSourceFormatUnspecified convert(
       final InputStream source, final boolean closeStream) {
 
+    return convert(createInputStreamSourceSpecs(source, closeStream));
+  }
+
+  public SourceDocumentSpecsFromFile createFileSourceSpecs(final File source) {
+    final DocumentFormat format =
+        formatRegistry.getFormatByExtension(FilenameUtils.getExtension(source.getName()));
+    return this.createFileSourceSpecs(source, format);
+  }
+
+  public SourceDocumentSpecsFromFile createFileSourceSpecs(
+      final File source, final DocumentFormat documentFormat) {
+    final SourceDocumentSpecsFromFile specs = new SourceDocumentSpecsFromFile(source);
+    if (documentFormat != null) {
+      specs.setDocumentFormat(documentFormat);
+    }
+    return specs;
+  }
+
+  public SourceDocumentSpecsFromInputStream createInputStreamSourceSpecs(
+      final InputStream source, final boolean closeStream) {
     if (officeManager instanceof TemporaryFileMaker) {
-      return convert(
-          new SourceDocumentSpecsFromInputStream(
-              source, (TemporaryFileMaker) officeManager, closeStream));
+      return new SourceDocumentSpecsFromInputStream(
+          source, (TemporaryFileMaker) officeManager, closeStream);
     }
     throw new IllegalStateException(
         "An office manager must implements the TemporaryFileMaker "
             + "interface in order to be able to convert InputStream");
+  }
+
+  public SourceDocumentSpecsFromInputStream createInputStreamSourceSpecs(
+      final InputStream source, final DocumentFormat documentFormat, final boolean closeStream) {
+    final SourceDocumentSpecsFromInputStream specs =
+        createInputStreamSourceSpecs(source, closeStream);
+    specs.setDocumentFormat(documentFormat);
+    return specs;
   }
 
   /**

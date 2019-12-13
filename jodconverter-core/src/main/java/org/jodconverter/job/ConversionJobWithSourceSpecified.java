@@ -20,7 +20,10 @@
 package org.jodconverter.job;
 
 import java.io.File;
+import java.io.InputStream;
 import java.io.OutputStream;
+
+import org.jodconverter.document.DocumentFormat;
 
 /** A conversion job with a specified source for the conversion. */
 public interface ConversionJobWithSourceSpecified {
@@ -53,4 +56,44 @@ public interface ConversionJobWithSourceSpecified {
    * @return The current conversion specification.
    */
   ConversionJobWithRequiredTargetFormatUnspecified to(OutputStream target, boolean closeStream);
+
+  /**
+   * Adds source to list of files to merge, document type is recognized ty extension
+   *
+   * @param source Merging input as {@link File}
+   * @return The current conversion specification
+   */
+  ConversionJobWithSourceSpecified append(File source);
+
+  /**
+   * Adds source to list of files to merge, because this method not recognize document type {@code
+   * documentFormat} must be not null
+   *
+   * @param source Merging input as {@link File}
+   * @param documentFormat type of document
+   * @return The current conversion specification
+   */
+  ConversionJobWithSourceSpecified append(File source, DocumentFormat documentFormat);
+
+  /**
+   * Adds source to list of files to merge from {@link InputStream}, because method is not able to
+   * recognize type {@code documentType} must be not null
+   *
+   * @param source Merging input as {@link InputStream}
+   * @param documentFormat type of document
+   * @return The current conversion specification
+   */
+  ConversionJobWithSourceSpecified append(InputStream source, DocumentFormat documentFormat);
+
+  /**
+   * Adds source to list of files to merge from {@link InputStream}, because method is not able to
+   * recognize type {@code documentType} must be not null
+   *
+   * @param source Merging input as {@link InputStream}
+   * @param documentFormat type of document
+   * @param closeStream whether the stream should be closed
+   * @return The current conversion specification
+   */
+  ConversionJobWithSourceSpecified append(
+      InputStream source, DocumentFormat documentFormat, boolean closeStream);
 }

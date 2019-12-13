@@ -19,23 +19,20 @@
 
 package org.jodconverter;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.File;
+import java.io.InputStream;
+import java.util.*;
 
 import org.apache.commons.lang3.Validate;
 
 import com.sun.star.document.UpdateDocMode;
 
+import org.jodconverter.document.DocumentFormat;
 import org.jodconverter.document.DocumentFormatRegistry;
 import org.jodconverter.filter.DefaultFilterChain;
 import org.jodconverter.filter.Filter;
 import org.jodconverter.filter.FilterChain;
-import org.jodconverter.job.AbstractConversionJob;
-import org.jodconverter.job.AbstractConversionJobWithSourceFormatUnspecified;
-import org.jodconverter.job.AbstractConverter;
-import org.jodconverter.job.AbstractSourceDocumentSpecs;
-import org.jodconverter.job.AbstractTargetDocumentSpecs;
+import org.jodconverter.job.*;
 import org.jodconverter.office.InstalledOfficeManagerHolder;
 import org.jodconverter.office.OfficeException;
 import org.jodconverter.office.OfficeManager;
@@ -169,15 +166,50 @@ public class LocalConverter extends AbstractConverter {
     @Override
     protected AbstractConversionJob to(final AbstractTargetDocumentSpecs target) {
 
-      return new LocalConversionJob(source, target);
+      return new LocalConversionJob(source, mergeSources, target);
+    }
+
+    @Override
+    public ConversionJobWithSourceSpecified append(File source) {
+      final AbstractSourceDocumentSpecs chunk = LocalConverter.this.createFileSourceSpecs(source);
+      appendChunk(chunk);
+      return LocalConverter.this.convert(chunk);
+    }
+
+    @Override
+    public ConversionJobWithSourceSpecified append(File source, DocumentFormat documentFormat) {
+      final AbstractSourceDocumentSpecs chunk =
+          LocalConverter.this.createFileSourceSpecs(source, documentFormat);
+      appendChunk(chunk);
+      return LocalConverter.this.convert(chunk);
+    }
+
+    @Override
+    public ConversionJobWithSourceSpecified append(
+        InputStream source, DocumentFormat documentFormat) {
+      return this.append(source, documentFormat, true);
+    }
+
+    @Override
+    public ConversionJobWithSourceSpecified append(
+        InputStream source, DocumentFormat documentFormat, boolean closeStream) {
+      final AbstractSourceDocumentSpecs chunk =
+          LocalConverter.this.createInputStreamSourceSpecs(source, documentFormat, closeStream);
+      appendChunk(chunk);
+      return LocalConverter.this.convert(chunk);
     }
   }
 
   private class LocalConversionJob extends AbstractConversionJob {
 
+    private final List<AbstractSourceDocumentSpecs> mergeSources;
+
     private LocalConversionJob(
-        final AbstractSourceDocumentSpecs source, final AbstractTargetDocumentSpecs target) {
+        final AbstractSourceDocumentSpecs source,
+        final List<AbstractSourceDocumentSpecs> mergeSources,
+        final AbstractTargetDocumentSpecs target) {
       super(source, target);
+      this.mergeSources = mergeSources;
     }
 
     @Override
@@ -185,7 +217,13 @@ public class LocalConverter extends AbstractConverter {
 
       // Create a default conversion task and execute it
       final LocalConversionTask task =
-          new LocalConversionTask(source, target, loadProperties, filterChain, storeProperties);
+          new LocalConversionTask(
+              source,
+              new ArrayList<>(mergeSources),
+              target,
+              loadProperties,
+              filterChain,
+              storeProperties);
       officeManager.execute(task);
     }
   }

@@ -90,7 +90,9 @@ public abstract class AbstractOfficeITest {
               // See https://forum.openoffice.org/en/forum/viewtopic.php?f=15&t=92508
               "docx",
               "xlsx",
-              "pptx")) {
+              "pptx",
+              // xhtml is not supported by OpenOffice 4.1.7
+              "xhtml")) {
         LOGGER.info(
             "-- skipping {} to {} test... ",
             inputFormat.getExtension(),

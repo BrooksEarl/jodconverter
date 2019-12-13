@@ -21,6 +21,8 @@ package org.jodconverter.job;
 
 import java.io.File;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.io.FilenameUtils;
 
@@ -41,6 +43,7 @@ public abstract class AbstractConversionJobWithSourceFormatUnspecified
   private static final boolean DEFAULT_CLOSE_STREAM = true;
 
   protected final AbstractSourceDocumentSpecs source;
+  protected final List<AbstractSourceDocumentSpecs> mergeSources;
   protected final OfficeManager officeManager;
   protected final DocumentFormatRegistry formatRegistry;
 
@@ -51,6 +54,7 @@ public abstract class AbstractConversionJobWithSourceFormatUnspecified
     super();
 
     this.source = source;
+    this.mergeSources = new ArrayList<>();
     this.officeManager = officeManager;
     this.formatRegistry = formatRegistry;
   }
@@ -101,6 +105,10 @@ public abstract class AbstractConversionJobWithSourceFormatUnspecified
    * @return The current conversion specification.
    */
   protected abstract AbstractConversionJob to(AbstractTargetDocumentSpecs target);
+
+  protected void appendChunk(final AbstractSourceDocumentSpecs additionalSource) {
+    this.mergeSources.add(additionalSource);
+  }
 
   private AbstractConversionJob toInternal(final AbstractTargetDocumentSpecs target) {
 

@@ -23,18 +23,20 @@ import static org.jodconverter.office.LocalOfficeUtils.toUnoProperties;
 import static org.jodconverter.office.LocalOfficeUtils.toUrl;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sun.star.beans.PropertyValue;
+import com.sun.star.document.XDocumentInsertable;
 import com.sun.star.frame.XStorable;
 import com.sun.star.io.IOException;
 import com.sun.star.lang.XComponent;
 import com.sun.star.task.ErrorCodeIOException;
+import com.sun.star.text.XTextCursor;
+import com.sun.star.text.XTextDocument;
 
 import org.jodconverter.filter.FilterChain;
 import org.jodconverter.filter.RefreshFilter;
@@ -53,14 +55,32 @@ public class LocalConversionTask extends AbstractLocalOfficeTask {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LocalConversionTask.class);
 
+  private final List<SourceDocumentSpecs> mergeSources;
   private final TargetDocumentSpecs target;
   private final FilterChain filterChain;
   private final Map<String, Object> storeProperties;
 
   /**
+   * works like {@link #LocalConversionTask(SourceDocumentSpecs, List, TargetDocumentSpecs, Map,
+   * FilterChain, Map)} except, list is always <code>null</code>
+   *
+   * @see #LocalConversionTask(SourceDocumentSpecs, List, TargetDocumentSpecs, Map, FilterChain,
+   *     Map)
+   */
+  public LocalConversionTask(
+      final SourceDocumentSpecs source,
+      final TargetDocumentSpecs target,
+      final Map<String, Object> loadProperties,
+      final FilterChain filterChain,
+      final Map<String, Object> storeProperties) {
+    this(source, null, target, loadProperties, filterChain, storeProperties);
+  }
+
+  /**
    * Creates a new conversion task from a specified source to a specified target.
    *
    * @param source The source specifications for the conversion.
+   * @param mergeSources sources to merge - may be {@code null} or {@code empty}
    * @param target The target specifications for the conversion.
    * @param loadProperties The load properties to be applied when loading the document. These
    *     properties are added after the load properties of the document format specified in the
@@ -72,12 +92,14 @@ public class LocalConversionTask extends AbstractLocalOfficeTask {
    */
   public LocalConversionTask(
       final SourceDocumentSpecs source,
+      final List<SourceDocumentSpecs> mergeSources,
       final TargetDocumentSpecs target,
       final Map<String, Object> loadProperties,
       final FilterChain filterChain,
       final Map<String, Object> storeProperties) {
     super(source, loadProperties);
 
+    this.mergeSources = Optional.ofNullable(mergeSources).orElse(Collections.emptyList());
     this.target = target;
     this.filterChain =
         Optional.ofNullable(filterChain).map(FilterChain::copy).orElse(RefreshFilter.CHAIN);
@@ -104,6 +126,15 @@ public class LocalConversionTask extends AbstractLocalOfficeTask {
       try {
         document = loadDocument(localContext, sourceFile);
         modifyDocument(context, document);
+        for (SourceDocumentSpecs mergeSource : mergeSources) {
+          final File tmpFile = mergeSource.getFile();
+          final XTextCursor textCursor =
+              Lo.qi(XTextDocument.class, document).getText().createTextCursor();
+          textCursor.gotoEnd(false);
+
+          Lo.qi(XDocumentInsertable.class, textCursor)
+              .insertDocumentFromURL(tmpFile.toURI().toString(), new PropertyValue[0]);
+        }
         storeDocument(document, targetFile);
 
         // onComplete on target will copy the temp file to
@@ -129,6 +160,7 @@ public class LocalConversionTask extends AbstractLocalOfficeTask {
       // Here the source file is no longer required so we can delete
       // any temporary file that has been created if required.
       source.onConsumed(sourceFile);
+      mergeSources.forEach(source -> source.onConsumed(source.getFile()));
     }
   }
 
